@@ -2,6 +2,7 @@
 
 from bisect import insort_left
 
+from UnionFind import UpTree
 from QueueAndStack import PriorityQueue, FIFOQueue
 
 class Graph(object):
@@ -45,6 +46,17 @@ class Graph(object):
 
     The default values for join, base, and noneVal will cause this function to
     find the shortest path kept in a list.
+
+    This function will consider every node exactly 1 time. Hence, the number of
+    times _dfs is called is proportional to |V|, the number of nodes in the graph.
+    This is because if a node is already visited, it will not be visited again.
+    Every edge must be connected to two nodes, and in the worst case every edge
+    will be seen one time. Hence, _dfs has O(|E| + |V|), for going through
+    |E| calls in the for loop and |V| calls of _dfs.
+
+    This specific implementation will have O(|E| * |V| + |V|) because we know
+    if a node is marked by its existence in an array. A faster implementation
+    could remove this barrier but for the sake of clarity I have included it.
     """
 
     # We have traveled to this node so mark it as not available
@@ -81,6 +93,11 @@ class Graph(object):
 
   def bfs(self, start, end, join=lambda x, y: [x] + y, base=lambda x:[x],
                 noneVal=None):
+
+    """
+    Breadth First Search will find the path to end which uses the shortest number
+    of edges.
+    """
 
     # If we start at the end then we know we're done
     if start == end:
@@ -136,6 +153,43 @@ class Graph(object):
     # end was not reachable from start. Therefore, we return noneVal
 
     return noneVal
+
+  def kruskal(self):
+
+    """
+    Create a min-spanning tree from this graph.
+    """
+
+    # Up tree initialized using one tree for every node in the graph
+    upTree = UpTree(self.adjacencyTable.keys())
+
+    # Create a PriorityQueue which uses edge weight to determine priority
+    # Edges are stored in the queue as (start, end, weight)
+    priorityQueue = PriorityQueue(lambda x:x[2])
+    for node, edges in self.adjacencyTable.items():
+      priorityQueue.enqueueAll([(node, nextNode, weight) for weight, nextNode in edges])
+
+    # For keeping track of the termination condition
+    numVertices = len(self.adjacencyTable.keys())
+
+    # Edges in the new graph
+    edges = []
+
+    # While the queue is not empty and while not every node has been connected
+    while priorityQueue and len(edges) != numVertices - 1:
+
+      # Remove the next least weighted edge from the queue.
+      node0, node1, weight = priorityQueue.deleteMin()
+
+      # If these nodes have not yet been connected, connect them
+      if upTree.find(node0) != upTree.find(node1):
+
+        # Union the uptree and add an edge to the end list of edges.
+        upTree.union(node0, node1)
+        edges.append((node0, node1, weight))
+
+    # Return the edges connected.
+    return edges
 
   def djikstra(self, start, join=lambda x, y: None, base=lambda x:None,
                      noneVal = None, returnVisited=False, reduce=lambda n, x:n):
@@ -499,3 +553,23 @@ if __name__ == "__main__":
   print(graph)
   print("Djikstra:\n{0}".format(path))
   print("Successful" if path == expectedGraph else "Failure")
+
+  print("----------------------------")
+  print("Testing Kruskal's Algorithm ")
+  print("----------------------------")
+
+  # Note, due to the method that I store the edges (in a hashtable)
+  # edge order cannot be consistent through runs and so I will not be
+  # attempting kruskal's for unweighted graphs or undirected graphs
+  # (it will never be consistent.)
+
+  path = graph.kruskal()
+
+  kruskalEdges = set([('h', 'b', 0), ('a', 'c', 1), ('c', 'e', 1),
+                      ('g', 'h', 2), ('c', 'f', 3), ('a', 'b', 5),
+                      ('g', 'd', 7)])
+
+  print("Graph:")
+  print(graph)
+  print("Edges:\n{0}".format(path))
+  print("Successful" if set(path) == kruskalEdges else "Failure")
